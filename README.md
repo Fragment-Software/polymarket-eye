@@ -2,6 +2,12 @@
 
 ## English
 
+### Socials
+
+Telegram channel: [https://t.me/fragment_software](https://t.me/fragment_software)
+
+Telegram chat: [https://t.me/fragment_software_chat](https://t.me/fragment_software_chat)
+
 ### Installation
 
 #### Prerequisites
@@ -40,6 +46,12 @@ After running, the output will be saved to `data/out.txt` in the following forma
 ---
 
 ## Русский
+
+### Где нас найти
+
+Telegram channel: [https://t.me/fragment_software](https://t.me/fragment_software)
+
+Telegram chat: [https://t.me/fragment_software_chat](https://t.me/fragment_software_chat)
 
 ### Установка
 
