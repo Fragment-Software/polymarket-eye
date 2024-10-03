@@ -8,7 +8,7 @@ use rand::{thread_rng, Rng};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::utils::common::get_timestamp_with_offset;
+use crate::utils::misc::get_timestamp_with_offset;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

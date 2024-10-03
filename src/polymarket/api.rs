@@ -11,10 +11,8 @@ use tokio::time::{sleep, timeout, Duration};
 use crate::{
     errors::custom::CustomError,
     utils::{
-        common::{
-            build_cookie_header, build_poly_headers, get_proxy_wallet_address, parse_cookies,
-        },
         fetch::{send_http_request_with_retries, RequestParams},
+        poly::{build_cookie_header, build_poly_headers, get_proxy_wallet_address, parse_cookies},
     },
 };
 
@@ -244,7 +242,7 @@ pub async fn get_transaction_status(
     polymarket_nonce: &str,
     polymarket_session: &str,
     proxy: Option<&Proxy>,
-) -> Result<bool, CustomError> {
+) -> Result<Option<String>, CustomError> {
     let headers = build_poly_headers(amp_cookie, polymarket_nonce, polymarket_session);
 
     let query_args = [("id".to_string(), transaction_id.to_string())]
@@ -269,9 +267,11 @@ pub async fn get_transaction_status(
     )
     .await?;
 
-    match response.body.unwrap()[0].state {
-        TransactionState::Mined => Ok(true),
-        _ => Ok(false),
+    let tx_status = &response.body.as_ref().unwrap()[0];
+
+    match tx_status.state {
+        TransactionState::Mined => Ok(Some(tx_status.transaction_hash.clone())),
+        _ => Ok(None),
     }
 }
 
@@ -283,7 +283,7 @@ pub async fn wait_for_transaction_confirmation(
     proxy: Option<&Proxy>,
     timeout_duration: Option<Duration>,
     poll_interval: Option<Duration>,
-) -> Result<(), CustomError> {
+) -> Result<String, CustomError> {
     let timeout_duration = timeout_duration.unwrap_or(Duration::from_secs(100));
     let poll_interval = poll_interval.unwrap_or(Duration::from_secs(5));
 
@@ -298,8 +298,8 @@ pub async fn wait_for_transaction_confirmation(
             )
             .await
             {
-                Ok(true) => return Ok(()),
-                Ok(false) => {
+                Ok(Some(transaction_hash)) => return Ok(transaction_hash),
+                Ok(None) => {
                     sleep(poll_interval).await;
                 }
                 Err(e) => {

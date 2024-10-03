@@ -1,0 +1,3 @@
+REGISTRATION_SLEEP_RANGE = [4, 10] # sleep range between each registration
+MOBILE_PROXIES = false             # whether you're using mobile proxies or not
+SWAP_IP_LINK = ""                  # if you're using mobile proxies put the change ip link in here

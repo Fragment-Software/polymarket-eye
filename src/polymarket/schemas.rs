@@ -5,7 +5,7 @@ use alloy_signer::Signer;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::{common::get_proxy_wallet_address, constants::PROXY_FACTORY_ADDRESS};
+use crate::utils::{constants::PROXY_FACTORY_ADDRESS, poly::get_proxy_wallet_address};
 
 #[allow(unused)]
 #[derive(Deserialize, Debug)]
@@ -306,4 +306,5 @@ pub enum TransactionState {
 #[serde(rename_all = "camelCase")]
 pub struct GetTransactionStatusResponse {
     pub state: TransactionState,
+    pub transaction_hash: String,
 }
