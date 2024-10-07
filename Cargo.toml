@@ -4,15 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-alloy = { version = "0.3.6", features = ["full"] }
-alloy-signer = { version = "0.4.0", features = ["eip712"] }
-alloy-signer-local = "0.4.0"
+alloy = { version = "0.3.6", features = ["full", "json", "eip712"] }
+alloy-chains = "0.1.36"
 base64 = "0.22.1"
 chrono = "0.4.38"
+const-hex = "1.13.1"
 cookie = "0.18.1"
+dialoguer = "0.11.0"
 eyre = "0.6.12"
 fake = "2.10.0"
-hex = "0.4.3"
 indexmap = "2.5.0"
 indicatif = "0.17.8"
 itertools = "0.13.0"

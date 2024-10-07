@@ -1,3 +1,4 @@
+use eyre::Report;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -17,4 +18,7 @@ pub enum CustomError {
 
     #[error("Timeout error: {0}")]
     Timeout(String),
+
+    #[error("Unexpected error: {0}")]
+    Unexpected(#[from] Report),
 }

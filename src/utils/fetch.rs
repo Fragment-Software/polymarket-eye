@@ -15,7 +15,7 @@ pub struct RequestParams<'a, S: Serialize> {
     pub url: &'a str,
     pub method: Method,
     pub body: Option<S>,
-    pub query_args: Option<HashMap<String, String>>,
+    pub query_args: Option<HashMap<&'a str, &'a str>>,
 }
 
 #[derive(Debug)]
@@ -81,7 +81,7 @@ pub async fn send_http_request<R: DeserializeOwned>(
             let json_value = json!(text);
             serde_json::from_value::<R>(json_value)
         }
-        .inspect_err(|e| tracing::error!("Failed to deserialize response: {}\n {:#?}", e, text))?;
+        .inspect_err(|e| tracing::error!("Failed to deserialize response: {}\n {{s}}", e))?;
 
         Some(deserialized)
     };

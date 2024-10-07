@@ -1,32 +1,27 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use alloy_signer::Signer;
+use alloy::signers::Signer;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION, COOKIE, SET_COOKIE},
-    Method, Proxy,
+    Method, Proxy, StatusCode,
 };
-
-use tokio::time::{sleep, timeout, Duration};
 
 use crate::{
     errors::custom::CustomError,
+    polymarket::api::typedefs::{AmpCookie, ClobAuthHeaders},
     utils::{
         fetch::{send_http_request_with_retries, RequestParams},
-        poly::{build_cookie_header, build_poly_headers, get_proxy_wallet_address, parse_cookies},
+        poly::{build_cookie_header, build_poly_headers, parse_cookies},
     },
 };
 
-use super::{
-    schemas::{
-        CreateUserRequestBody, CreateUserResponseBody, EnableTradingRequestBody,
-        EnableTradingResponseBody, GetNonceResponseBody, GetTransactionStatusResponse,
-        LoginReponseBody, TransactionState, UpdatePreferencesRequestBody,
-        UpdateUsernameRequestBody,
-    },
-    typedefs::AmpCookie,
+use super::schemas::{
+    ClobApiKeyResponseBody, CreateUserRequestBody, CreateUserResponseBody,
+    GetAuthNonceResponseBody, LoginReponseBody, UpdatePreferencesRequestBody,
+    UpdateUsernameRequestBody, User,
 };
 
-pub async fn get_nonce(proxy: Option<&Proxy>) -> Result<(String, String), CustomError> {
+pub async fn get_auth_nonce(proxy: Option<&Proxy>) -> Result<(String, String), CustomError> {
     let request_params = RequestParams {
         url: "https://gamma-api.polymarket.com/nonce",
         method: Method::GET,
@@ -34,7 +29,7 @@ pub async fn get_nonce(proxy: Option<&Proxy>) -> Result<(String, String), Custom
         query_args: None,
     };
 
-    let response = send_http_request_with_retries::<GetNonceResponseBody>(
+    let response = send_http_request_with_retries::<GetAuthNonceResponseBody>(
         &request_params,
         None,
         proxy,
@@ -203,27 +198,22 @@ pub async fn update_preferences(
     Ok(())
 }
 
-pub async fn enable_trading<S: Signer>(
-    signer: Arc<S>,
-    signature: &str,
+pub async fn get_user(
     amp_cookie: &mut AmpCookie,
     polymarket_nonce: &str,
     polymarket_session: &str,
     proxy: Option<&Proxy>,
-) -> Result<String, CustomError> {
+) -> Result<Option<User>, CustomError> {
     let headers = build_poly_headers(amp_cookie, polymarket_nonce, polymarket_session);
 
-    let body =
-        EnableTradingRequestBody::new(signer.clone(), get_proxy_wallet_address(signer), signature);
-
     let request_params = RequestParams {
-        url: "https://relayer-v2.polymarket.com/submit",
-        method: Method::POST,
-        body: Some(body),
+        url: "https://gamma-api.polymarket.com/users",
+        method: Method::GET,
+        body: None::<serde_json::Value>,
         query_args: None,
     };
 
-    let response = send_http_request_with_retries::<EnableTradingResponseBody>(
+    let response = send_http_request_with_retries::<Option<Vec<User>>>(
         &request_params,
         Some(&headers),
         proxy,
@@ -233,31 +223,73 @@ pub async fn enable_trading<S: Signer>(
     )
     .await?;
 
-    Ok(response.body.unwrap().transaction_id)
+    let user = response
+        .body
+        .flatten()
+        .and_then(|users| users.first().cloned());
+
+    Ok(user)
 }
 
-pub async fn get_transaction_status(
-    transaction_id: &str,
-    amp_cookie: &mut AmpCookie,
-    polymarket_nonce: &str,
-    polymarket_session: &str,
+pub async fn derive_api_key<S>(
+    signer: Arc<S>,
     proxy: Option<&Proxy>,
-) -> Result<Option<String>, CustomError> {
-    let headers = build_poly_headers(amp_cookie, polymarket_nonce, polymarket_session);
-
-    let query_args = [("id".to_string(), transaction_id.to_string())]
-        .iter()
-        .map(|(arg, value)| (arg.to_owned(), value.to_owned()))
-        .collect();
+) -> Result<ClobApiKeyResponseBody, CustomError>
+where
+    S: Signer + Send + Sync,
+{
+    let headers = ClobAuthHeaders::new(signer.clone()).await.to_headers();
+    let mut query_args = HashMap::new();
+    query_args.insert("geo_block_token", "");
 
     let request_params = RequestParams {
-        url: "https://relayer-v2.polymarket.com/transaction",
+        url: "https://clob.polymarket.com/auth/derive-api-key",
         method: Method::GET,
         body: None::<serde_json::Value>,
         query_args: Some(query_args),
     };
 
-    let response = send_http_request_with_retries::<Vec<GetTransactionStatusResponse>>(
+    let response = send_http_request_with_retries::<ClobApiKeyResponseBody>(
+        &request_params,
+        Some(&headers),
+        proxy,
+        None,
+        None,
+        |err| match err {
+            CustomError::Request(error) => {
+                if let Some(status) = error.status() {
+                    status != StatusCode::BAD_REQUEST
+                } else {
+                    true
+                }
+            }
+            _ => true,
+        },
+    )
+    .await?;
+
+    Ok(response.body.unwrap())
+}
+
+pub async fn create_api_key<S>(
+    signer: Arc<S>,
+    proxy: Option<&Proxy>,
+) -> Result<ClobApiKeyResponseBody, CustomError>
+where
+    S: Signer + Send + Sync,
+{
+    let headers = ClobAuthHeaders::new(signer.clone()).await.to_headers();
+    let mut query_args = HashMap::new();
+    query_args.insert("geo_block_token", "");
+
+    let request_params = RequestParams {
+        url: "https://clob.polymarket.com/auth/api-key",
+        method: Method::POST,
+        body: None::<serde_json::Value>,
+        query_args: Some(query_args),
+    };
+
+    let response = send_http_request_with_retries::<ClobApiKeyResponseBody>(
         &request_params,
         Some(&headers),
         proxy,
@@ -267,52 +299,5 @@ pub async fn get_transaction_status(
     )
     .await?;
 
-    let tx_status = &response.body.as_ref().unwrap()[0];
-
-    match tx_status.state {
-        TransactionState::Mined => Ok(Some(tx_status.transaction_hash.clone())),
-        _ => Ok(None),
-    }
-}
-
-pub async fn wait_for_transaction_confirmation(
-    transaction_id: &str,
-    amp_cookie: &mut AmpCookie,
-    polymarket_nonce: &str,
-    polymarket_session: &str,
-    proxy: Option<&Proxy>,
-    timeout_duration: Option<Duration>,
-    poll_interval: Option<Duration>,
-) -> Result<String, CustomError> {
-    let timeout_duration = timeout_duration.unwrap_or(Duration::from_secs(100));
-    let poll_interval = poll_interval.unwrap_or(Duration::from_secs(5));
-
-    let polling_future = async {
-        loop {
-            match get_transaction_status(
-                transaction_id,
-                amp_cookie,
-                polymarket_nonce,
-                polymarket_session,
-                proxy,
-            )
-            .await
-            {
-                Ok(Some(transaction_hash)) => return Ok(transaction_hash),
-                Ok(None) => {
-                    sleep(poll_interval).await;
-                }
-                Err(e) => {
-                    return Err(e);
-                }
-            }
-        }
-    };
-
-    match timeout(timeout_duration, polling_future).await {
-        Ok(result) => result,
-        Err(_) => Err(CustomError::Timeout(
-            "Transaction not mined within timeout".to_string(),
-        )),
-    }
+    Ok(response.body.unwrap())
 }

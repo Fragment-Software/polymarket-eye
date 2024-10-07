@@ -3,15 +3,16 @@ use std::sync::Arc;
 use alloy::{
     dyn_abi::SolType,
     primitives::{address, keccak256, Address, U256},
+    signers::Signer,
     sol,
     sol_types::eip712_domain,
 };
-use alloy_signer::Signer;
+
 use cookie::Cookie;
 use indexmap::IndexMap;
 use reqwest::header::{HeaderMap, HeaderValue, COOKIE};
 
-use crate::polymarket::typedefs::AmpCookie;
+use crate::polymarket::api::typedefs::AmpCookie;
 
 use super::constants::{INIT_CODE_HASH, PROXY_FACTORY_ADDRESS};
 
@@ -59,9 +60,9 @@ sol! {
 impl Default for CreateProxy {
     fn default() -> Self {
         Self {
-            paymentToken: address!("0000000000000000000000000000000000000000"),
-            payment: U256::from(0),
-            paymentReceiver: address!("0000000000000000000000000000000000000000"),
+            paymentToken: Address::ZERO,
+            payment: U256::ZERO,
+            paymentReceiver: Address::ZERO,
         }
     }
 }
@@ -83,7 +84,7 @@ where
         .await
         .unwrap();
 
-    format!("0x{}", hex::encode(signed_message.as_bytes()))
+    const_hex::encode_prefixed(signed_message.as_bytes())
 }
 
 pub fn parse_cookies(header: &str) -> IndexMap<String, String> {

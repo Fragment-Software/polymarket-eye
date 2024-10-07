@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use alloy::primitives::Address;
-use alloy_signer::Signer;
+use alloy::{primitives::Address, signers::Signer};
+
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::{constants::PROXY_FACTORY_ADDRESS, poly::get_proxy_wallet_address};
+use crate::utils::poly::get_proxy_wallet_address;
 
 #[allow(unused)]
 #[derive(Deserialize, Debug)]
@@ -16,7 +16,7 @@ pub struct LoginReponseBody {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct GetNonceResponseBody {
+pub struct GetAuthNonceResponseBody {
     pub nonce: String,
 }
 
@@ -67,7 +67,7 @@ pub struct CreateUserRequestBody<'a> {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct User {
     pub address: String,
@@ -76,8 +76,8 @@ pub struct User {
     pub proxy_wallet: String,
     pub username: String,
 
-    pub preferences: Vec<Preferences>,
-    pub wallet_preferences: Vec<WalletPreferences>,
+    pub preferences: Option<Vec<Preferences>>,
+    pub wallet_preferences: Option<Vec<WalletPreferences>>,
 
     pub id: Option<String>,
     pub blocked: Option<bool>,
@@ -92,7 +92,7 @@ pub struct User {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
     pub email_notification_preferences: String,
@@ -109,7 +109,7 @@ pub struct Preferences {
 }
 
 #[serde_with::skip_serializing_none]
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WalletPreferences {
     pub advanced_mode: bool,
@@ -157,8 +157,8 @@ impl User {
             provider: "metamask".to_string(),
             proxy_wallet: proxy_wallet_address.to_string(),
             username: username.to_string(),
-            preferences: vec![Preferences::new()],
-            wallet_preferences: vec![WalletPreferences::new()],
+            preferences: Some(vec![Preferences::new()]),
+            wallet_preferences: Some(vec![WalletPreferences::new()]),
             id: None,
             blocked: None,
             created_at: None,
@@ -233,78 +233,10 @@ impl<'a> UpdatePreferencesRequestBody<'a> {
     }
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EnableTradingRequestBody<'a> {
-    from: String,
-    to: String,
-    proxy_wallet: String,
-    data: &'a str,
-    signature: &'a str,
-    signature_params: SignatureParams<'a>,
-    #[serde(rename = "type")]
-    type_: &'a str,
-}
-
-impl<'a> EnableTradingRequestBody<'a> {
-    pub fn new<S: Signer>(
-        signer: Arc<S>,
-        proxy_wallet_address: Address,
-        signature: &'a str,
-    ) -> Self {
-        Self {
-            from: signer.address().to_string(),
-            to: PROXY_FACTORY_ADDRESS.to_string(),
-            proxy_wallet: proxy_wallet_address.to_string(),
-            data: "0x",
-            signature,
-            signature_params: SignatureParams::default(),
-            type_: "SAFE-CREATE",
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SignatureParams<'a> {
-    payment_token: &'a str,
-    payment: &'a str,
-    payment_receiver: &'a str,
-}
-
-impl<'a> Default for SignatureParams<'a> {
-    fn default() -> Self {
-        Self {
-            payment_token: "0x0000000000000000000000000000000000000000",
-            payment: "0",
-            payment_receiver: "0x0000000000000000000000000000000000000000",
-        }
-    }
-}
-
-#[allow(unused)]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct EnableTradingResponseBody {
-    #[serde(rename = "transactionID")]
-    pub transaction_id: String,
-    pub transaction_hash: String,
-    pub state: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub enum TransactionState {
-    #[serde(rename = "STATE_NEW")]
-    New,
-    #[serde(rename = "STATE_EXECUTED")]
-    Executed,
-    #[serde(rename = "STATE_MINED")]
-    Mined,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct GetTransactionStatusResponse {
-    pub state: TransactionState,
-    pub transaction_hash: String,
+pub struct ClobApiKeyResponseBody {
+    pub api_key: String,
+    pub secret: String,
+    pub passphrase: String,
 }

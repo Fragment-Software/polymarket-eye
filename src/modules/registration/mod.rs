@@ -1,19 +1,22 @@
-use std::{str::FromStr, sync::Arc};
+use std::str::FromStr;
 
 use alloy::primitives::Address;
-use alloy_signer_local::PrivateKeySigner;
-
-use reqwest::Proxy;
+use reqwest::StatusCode;
 
 use crate::{
     config::Config,
     db::{account::Account, database::Database},
-    polymarket::{
-        api::{
-            create_profile, enable_trading, get_nonce, login, update_preferences, update_username,
-            wait_for_transaction_confirmation,
+    errors::custom::CustomError,
+    polymarket::api::{
+        relayer::{
+            common::{approve_tokens, enable_trading},
+            endpoints::wait_for_transaction_confirmation,
         },
         typedefs::{AmpCookie, AuthHeaderPayload},
+        user::endpoints::{
+            create_api_key, create_profile, derive_api_key, get_auth_nonce, get_user, login,
+            update_preferences, update_username,
+        },
     },
     utils::{
         constants::OUT_FILE_PATH,
@@ -25,11 +28,11 @@ use crate::{
 
 const POLYGON_EXPLORER_TX_BASE_URL: &str = "https://polygonscan.com/tx/";
 
-pub async fn register_accounts(mut db: Database, config: Config) -> eyre::Result<()> {
+pub async fn register_accounts(mut db: Database, config: &Config) -> eyre::Result<()> {
     while let Some(account) =
         db.get_random_account_with_filter(|account: &Account| !account.get_is_registered())
     {
-        register_account(account.signer(), account.proxy(), &config).await?;
+        register_account(account, config).await?;
 
         account.set_is_registered(true);
         db.update();
@@ -40,12 +43,11 @@ pub async fn register_accounts(mut db: Database, config: Config) -> eyre::Result
     Ok(())
 }
 
-async fn register_account(
-    signer: Arc<PrivateKeySigner>,
-    proxy: Option<Proxy>,
-    config: &Config,
-) -> eyre::Result<()> {
-    tracing::info!("Wallet: `{}`", signer.address());
+async fn register_account(account: &mut Account, config: &Config) -> eyre::Result<()> {
+    let signer = account.signer();
+    let proxy = account.proxy();
+
+    tracing::info!("Wallet address: `{}`", signer.address());
 
     if config.mobile_proxies {
         tracing::info!("Changing IP address");
@@ -54,7 +56,9 @@ async fn register_account(
 
     tracing::info!("Creating a profile");
 
-    let (msg_nonce, polymarket_nonce) = get_nonce(proxy.as_ref()).await?;
+    let (msg_nonce, polymarket_nonce) = get_auth_nonce(proxy.as_ref()).await?;
+    account.set_polymarket_nonce(&polymarket_nonce);
+
     let auth_header_value = AuthHeaderPayload::new(signer.address(), &msg_nonce)
         .get_auth_header_value(signer.clone())
         .await;
@@ -68,6 +72,23 @@ async fn register_account(
     )
     .await?;
 
+    account.set_polymarket_session(&polymarket_session);
+
+    if get_user(
+        &mut amp_cookie,
+        &polymarket_nonce,
+        &polymarket_session,
+        proxy.as_ref(),
+    )
+    .await?
+    .is_some()
+    {
+        tracing::warn!("Account already registered");
+
+        account.set_is_registered(true);
+        return Ok(());
+    };
+
     let profile = create_profile(
         signer.clone(),
         proxy.as_ref(),
@@ -79,10 +100,13 @@ async fn register_account(
 
     let username = generate_random_username();
     let profile_id = profile.id;
-    let preferences_id = profile.users[0].preferences[0].id.clone().unwrap();
+    let preferences_id = profile.users[0].preferences.as_ref().unwrap()[0]
+        .id
+        .clone()
+        .unwrap();
     let proxy_address = Address::from_str(&profile.proxy_wallet)?.to_checksum(None);
 
-    tracing::info!("Saving results to a file");
+    tracing::info!("Saving results");
 
     append_line_to_file(
         OUT_FILE_PATH,
@@ -118,7 +142,7 @@ async fn register_account(
 
     let signature = sign_enable_trading_message(signer.clone()).await;
 
-    tracing::info!("Enabling trading");
+    tracing::info!("Activating a proxy wallet");
     let tx_id = enable_trading(
         signer.clone(),
         &signature,
@@ -140,7 +164,43 @@ async fn register_account(
     )
     .await?;
 
-    tracing::info!("Account created: {POLYGON_EXPLORER_TX_BASE_URL}{tx_hash}");
+    tracing::info!("Proxy wallet acitvated: {POLYGON_EXPLORER_TX_BASE_URL}{tx_hash}");
+
+    tracing::info!("Deriving API key");
+
+    let response = match derive_api_key(signer.clone(), proxy.as_ref()).await {
+        Ok(response) => response,
+        Err(CustomError::Request(e)) if e.status() == Some(StatusCode::BAD_REQUEST) => {
+            tracing::warn!("Account has no existing API key, creating one");
+            create_api_key(signer.clone(), proxy.as_ref()).await?
+        }
+        Err(e) => eyre::bail!("Failed to derive API key: {e}"),
+    };
+
+    account.update_credentials(response);
+
+    tracing::info!("Giving token approvals");
+    let tx_id = approve_tokens(
+        signer,
+        &mut amp_cookie,
+        &polymarket_nonce,
+        &polymarket_session,
+        proxy.as_ref(),
+    )
+    .await?;
+
+    let tx_hash = wait_for_transaction_confirmation(
+        &tx_id,
+        &mut amp_cookie,
+        &polymarket_nonce,
+        &polymarket_session,
+        None,
+        None,
+        None,
+    )
+    .await?;
+
+    tracing::info!("Approval succeded: {POLYGON_EXPLORER_TX_BASE_URL}{tx_hash}");
 
     Ok(())
 }

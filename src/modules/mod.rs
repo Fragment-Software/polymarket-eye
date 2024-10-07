@@ -1,1 +1,3 @@
-pub mod registration;
+mod deposit;
+pub mod menu;
+mod registration;

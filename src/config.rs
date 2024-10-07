@@ -9,6 +9,10 @@ pub struct Config {
     pub registration_sleep_range: [u64; 2],
     pub mobile_proxies: bool,
     pub swap_ip_link: String,
+    pub polygon_rpc_url: String,
+    pub ignore_existing_balance: bool,
+    pub usdc_amount_deposit_range: [f64; 2],
+    pub deposit_sleep_range: [u64; 2],
 }
 
 impl Config {

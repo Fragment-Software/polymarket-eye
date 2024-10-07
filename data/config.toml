@@ -1,3 +1,16 @@
-REGISTRATION_SLEEP_RANGE = [4, 10] # sleep range between each registration
-MOBILE_PROXIES = false             # whether you're using mobile proxies or not
-SWAP_IP_LINK = ""                  # if you're using mobile proxies put the change ip link in here
+# REGISTRATION #
+REGISTRATION_SLEEP_RANGE = [
+    4,
+    10,
+] # sleep range between each registration (seconds)
+MOBILE_PROXIES = false # whether you're using mobile proxies or not
+SWAP_IP_LINK = "" # if you're using mobile proxies put the change ip link in here
+
+# DEPOSITS #
+POLYGON_RPC_URL = "https://rpc.ankr.com/polygon"
+IGNORE_EXISTING_BALANCE = true # when using the deposits module whether to ignore current proxy wallet balance
+USDC_AMOUNT_DEPOSIT_RANGE = [
+    1,
+    1.1,
+] # range from and to to be sent to a proxy wallet address
+DEPOSIT_SLEEP_RANGE = [13, 18]

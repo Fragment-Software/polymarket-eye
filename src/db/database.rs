@@ -42,8 +42,8 @@ impl Database {
                 }
             };
 
-            let wallet = Account::new(&private_key, proxy);
-            data.push(wallet);
+            let account = Account::new(&private_key, proxy);
+            data.push(account);
         }
 
         let db_file = File::create(DB_FILE_PATH)?;
