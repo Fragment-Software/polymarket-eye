@@ -123,34 +123,34 @@ async fn register_account(account: &mut Account, config: &Config) -> eyre::Resul
             None,
         )
         .await?;
+
+        // TODO: check if the proxy wallet is activated
+        let signature = sign_enable_trading_message(signer.clone()).await;
+
+        tracing::info!("Activating a proxy wallet");
+        let tx_id = enable_trading(
+            signer.clone(),
+            &signature,
+            &mut amp_cookie,
+            &polymarket_nonce,
+            &polymarket_session,
+            None,
+        )
+        .await?;
+
+        let tx_hash = wait_for_transaction_confirmation(
+            &tx_id,
+            &mut amp_cookie,
+            &polymarket_nonce,
+            &polymarket_session,
+            None,
+            None,
+            None,
+        )
+        .await?;
+
+        tracing::info!("Proxy wallet acitvated: {POLYGON_EXPLORER_TX_BASE_URL}{tx_hash}");
     }
-
-    // TODO: check if the proxy wallet is activated
-    let signature = sign_enable_trading_message(signer.clone()).await;
-
-    tracing::info!("Activating a proxy wallet");
-    let tx_id = enable_trading(
-        signer.clone(),
-        &signature,
-        &mut amp_cookie,
-        &polymarket_nonce,
-        &polymarket_session,
-        None,
-    )
-    .await?;
-
-    let tx_hash = wait_for_transaction_confirmation(
-        &tx_id,
-        &mut amp_cookie,
-        &polymarket_nonce,
-        &polymarket_session,
-        None,
-        None,
-        None,
-    )
-    .await?;
-
-    tracing::info!("Proxy wallet acitvated: {POLYGON_EXPLORER_TX_BASE_URL}{tx_hash}");
 
     let api_creds_response = create_or_derive_api_key(signer.clone(), proxy.as_ref()).await?;
     account.update_credentials(api_creds_response);
