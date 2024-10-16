@@ -25,3 +25,5 @@ logs
 .env
 
 out.txt
+
+.DS_Store

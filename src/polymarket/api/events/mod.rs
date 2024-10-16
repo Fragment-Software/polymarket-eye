@@ -1,2 +1,2 @@
 pub mod endpoints;
-mod schemas;
+pub mod schemas;

@@ -6,15 +6,17 @@ use alloy::{
     sol,
     sol_types::eip712_domain,
 };
-use base64::{prelude::BASE64_STANDARD, Engine};
+use base64::{engine::general_purpose::URL_SAFE, prelude::BASE64_STANDARD, Engine};
 use chrono::Utc;
+use hmac::{Hmac, Mac};
 use rand::{thread_rng, Rng};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Serialize;
 use serde_json::Value;
+use sha2::Sha256;
 use uuid::Uuid;
 
-use crate::utils::misc::get_timestamp_with_offset;
+use crate::{db::account::ApiCreds, utils::misc::get_timestamp_with_offset};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -146,15 +148,39 @@ sol! {
     }
 }
 
+pub trait HeaderMapSerializeable {
+    fn to_headermap(&self) -> HeaderMap
+    where
+        Self: Serialize,
+    {
+        let mut headers = HeaderMap::new();
+        let value = serde_json::to_value(self).unwrap();
+
+        if let Value::Object(map) = value {
+            for (k, v) in map {
+                if let Value::String(s) = v {
+                    let header_name = HeaderName::from_bytes(k.as_bytes()).unwrap();
+                    let header_value = HeaderValue::from_str(&s).unwrap();
+                    headers.insert(header_name, header_value);
+                }
+            }
+        }
+
+        headers
+    }
+}
+
 #[derive(Serialize)]
-pub struct ClobAuthHeaders {
+pub struct LayerOneClobAuthHeaders {
     poly_address: String,
     poly_nonce: String,
     poly_signature: String,
     poly_timestamp: String,
 }
 
-impl ClobAuthHeaders {
+impl HeaderMapSerializeable for LayerOneClobAuthHeaders {}
+
+impl LayerOneClobAuthHeaders {
     pub async fn new<S: Signer + Send + Sync>(signer: Arc<S>) -> Self {
         let timestamp = Utc::now().timestamp().to_string();
         let signature = Self::sign_clob_auth_message(signer.clone(), &timestamp).await;
@@ -190,21 +216,61 @@ impl ClobAuthHeaders {
 
         const_hex::encode_prefixed(signed_message.as_bytes())
     }
+}
 
-    pub fn to_headers(&self) -> HeaderMap {
-        let mut headers = HeaderMap::new();
-        let value = serde_json::to_value(self).unwrap();
+#[derive(Serialize, Debug)]
+pub struct LayerTwoClobAuthHeaders {
+    poly_address: String,
+    poly_signature: String,
+    poly_timestamp: String,
+    poly_api_key: String,
+    poly_passphrase: String,
+}
 
-        if let Value::Object(map) = value {
-            for (k, v) in map {
-                if let Value::String(s) = v {
-                    let header_name = HeaderName::from_bytes(k.as_bytes()).unwrap();
-                    let header_value = HeaderValue::from_str(&s).unwrap();
-                    headers.insert(header_name, header_value);
-                }
-            }
+impl HeaderMapSerializeable for LayerTwoClobAuthHeaders {}
+
+impl LayerTwoClobAuthHeaders {
+    pub fn new(
+        address: &str,
+        api_creds: ApiCreds,
+        method: &str,
+        path: &str,
+        body: Option<&str>,
+        timestamp: Option<String>,
+    ) -> Self {
+        let timestamp = timestamp.unwrap_or(Utc::now().timestamp().to_string());
+        let signature =
+            Self::build_hmac_signature(&timestamp, &api_creds.api_secret, method, path, body);
+
+        Self {
+            poly_address: address.to_string(),
+            poly_signature: signature,
+            poly_timestamp: timestamp,
+            poly_api_key: api_creds.api_key.to_string(),
+            poly_passphrase: api_creds.api_passphrase.to_string(),
+        }
+    }
+
+    fn build_hmac_signature(
+        timestamp: &str,
+        secret: &str,
+        method: &str,
+        path: &str,
+        body: Option<&str>,
+    ) -> String {
+        let mut message = format!("{}{}{}", timestamp, method, path);
+        if let Some(body) = body {
+            message = format!("{}{}", message, body);
         }
 
-        headers
+        let bs64_secret = URL_SAFE.decode(secret).unwrap();
+
+        let mut mac = Hmac::<Sha256>::new_from_slice(&bs64_secret).unwrap();
+        mac.update(message.as_bytes());
+
+        let result = mac.finalize();
+        let hmac_bytes = result.into_bytes();
+
+        URL_SAFE.encode(hmac_bytes)
     }
 }

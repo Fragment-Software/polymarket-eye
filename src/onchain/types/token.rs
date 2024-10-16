@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-use alloy::primitives::{address, Address, U256};
+use alloy::primitives::{Address, U256};
+
+use crate::onchain::constants::USDCE_CONTRACT_ADDRESS;
 
 pub struct Token {
     pub contract_address: Address,
@@ -11,7 +13,7 @@ pub struct Token {
 
 impl Token {
     pub const USDCE: Token = Token {
-        contract_address: address!("2791Bca1f2de4661ED88A30C99A7a9449Aa84174"),
+        contract_address: USDCE_CONTRACT_ADDRESS,
         decimals: 6,
         symbol: "USDC",
         is_erc20: true,

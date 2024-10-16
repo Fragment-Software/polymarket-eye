@@ -8,9 +8,23 @@ SWAP_IP_LINK = "" # if you're using mobile proxies put the change ip link in her
 
 # DEPOSITS #
 POLYGON_RPC_URL = "https://rpc.ankr.com/polygon"
-IGNORE_EXISTING_BALANCE = true # when using the deposits module whether to ignore current proxy wallet balance
+IGNORE_EXISTING_BALANCE = false # when using the deposits module whether to ignore current proxy wallet balance
 USDC_AMOUNT_DEPOSIT_RANGE = [
-    1,
-    1.1,
+    10,
+    11,
 ] # range from and to to be sent to a proxy wallet address
-DEPOSIT_SLEEP_RANGE = [13, 18]
+DEPOSIT_SLEEP_RANGE = [13, 18] # delays made between each proxy wallet deposit
+
+# OPPOSING BETS #
+PRICE_DIFFERENCE_THRESHOLD = 0.5 # max price difference between outcomes, if price_difference > PRICE_DIFFERENCE_THRESHOLD the event will be skipped
+SPREAD_THRESHOLD = 0.01 # the minimum required price difference between ask and bid to execute trades, if spread > SPREAD_THRESHOLD the event will be skipped
+BET_BALANCE_PERCENTAGE = [
+    10,
+    15,
+] # proxy wallet balance percentage range used for bet amount
+SELL_DELAY_RANGE = [20, 30] # delay range after which the position is sold
+BATCH_DELAY_RANGE = [
+    5,
+    20,
+] # bets are spawned in batches of 2 wallets, this delay is used to sleep between each batch before placing opposing bets
+CYCLE_COUNT = 2 # amount of betting cycles

@@ -19,6 +19,9 @@ pub enum CustomError {
     #[error("Timeout error: {0}")]
     Timeout(String),
 
+    #[error("Clob API error: {0}")]
+    ClobApiError(String),
+
     #[error("Unexpected error: {0}")]
     Unexpected(#[from] Report),
 }

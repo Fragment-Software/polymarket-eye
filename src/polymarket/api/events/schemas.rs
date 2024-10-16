@@ -1,54 +1,67 @@
+use std::fmt::Display;
+
 use serde::{de, Deserialize, Deserializer};
 
 #[allow(unused)]
 #[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct Event {
-    id: String,
-    markets: Vec<Market>,
+    pub id: String,
+    pub slug: String,
+    pub title: String,
+    pub markets: Vec<Market>,
+    pub neg_risk: Option<bool>,
 }
 
 #[allow(unused)]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-struct Market {
-    id: String,
-    question: String,
-    active: bool,
+pub struct Market {
+    pub id: String,
+    pub question: String,
+    pub active: bool,
     #[serde(rename = "questionID")]
-    question_id: String,
+    pub question_id: Option<String>,
     #[serde(deserialize_with = "deserialize_into_string_array")]
-    outcomes: [String; 2],
+    pub outcomes: [String; 2],
     #[serde(deserialize_with = "deserialize_outcome_prices")]
-    outcome_prices: [f64; 2],
-    rewards_max_spread: f64,
+    pub outcome_prices: Option<[f64; 2]>,
+    pub rewards_max_spread: f64,
     #[serde(deserialize_with = "deserialize_into_string_array")]
-    clob_token_ids: [String; 2],
-    spread: f64,
+    pub clob_token_ids: [String; 2],
+    pub spread: f64,
+    pub order_price_min_tick_size: f64,
 }
 
-fn deserialize_outcome_prices<'de, D>(deserializer: D) -> Result<[f64; 2], D::Error>
+fn deserialize_outcome_prices<'de, D>(deserializer: D) -> Result<Option<[f64; 2]>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let s: String = Deserialize::deserialize(deserializer)?;
-    let vec_str: Vec<String> =
-        serde_json::from_str(&s).map_err(|err| de::Error::custom(err.to_string()))?;
+    let opt_s: Option<String> = Option::deserialize(deserializer)?;
 
-    if vec_str.len() != 2 {
-        return Err(de::Error::invalid_length(
-            vec_str.len(),
-            &"expected an array of length 2",
-        ));
+    match opt_s {
+        Some(s) => {
+            let vec_str: Vec<String> =
+                serde_json::from_str(&s).map_err(|err| de::Error::custom(err.to_string()))?;
+
+            if vec_str.len() != 2 {
+                return Err(de::Error::invalid_length(
+                    vec_str.len(),
+                    &"expected an array of length 2",
+                ));
+            }
+
+            let mut vec_f64 = [0.0; 2];
+            for (i, val_str) in vec_str.iter().enumerate() {
+                vec_f64[i] = val_str
+                    .parse::<f64>()
+                    .map_err(|e| de::Error::custom(e.to_string()))?;
+            }
+
+            Ok(Some(vec_f64))
+        }
+        None => Ok(None),
     }
-
-    let mut vec_f64 = [0.0; 2];
-    for (i, val_str) in vec_str.iter().enumerate() {
-        vec_f64[i] = val_str
-            .parse::<f64>()
-            .map_err(|e| de::Error::custom(e.to_string()))?;
-    }
-
-    Ok(vec_f64)
 }
 
 fn deserialize_into_string_array<'de, D>(deserializer: D) -> Result<[String; 2], D::Error>
@@ -68,4 +81,16 @@ where
     }
 
     Ok([vec[0].clone(), vec[1].clone()])
+}
+
+impl Event {
+    pub fn get_url(&self) -> String {
+        format!("https://polymarket.com/event/{}", self.slug)
+    }
+}
+
+impl Display for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - {}", self.title, self.get_url(),)
+    }
 }

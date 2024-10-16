@@ -6,11 +6,10 @@ use crate::{
     utils::fetch::{send_http_request_with_retries, RequestParams},
 };
 
-#[allow(unused)]
 pub async fn get_events(
     limit: Option<u64>,
     offset: u64,
-    proxy: Option<Proxy>,
+    proxy: Option<&Proxy>,
 ) -> Result<Vec<Event>, CustomError> {
     let offset = offset.to_string();
     let limit = limit.unwrap_or(20).to_string();
@@ -38,7 +37,7 @@ pub async fn get_events(
     let response = send_http_request_with_retries::<Vec<Event>>(
         &request_params,
         None,
-        proxy.as_ref(),
+        proxy,
         None,
         None,
         |_| true,

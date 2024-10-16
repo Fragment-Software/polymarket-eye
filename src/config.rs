@@ -13,6 +13,12 @@ pub struct Config {
     pub ignore_existing_balance: bool,
     pub usdc_amount_deposit_range: [f64; 2],
     pub deposit_sleep_range: [u64; 2],
+    pub price_difference_threshold: f64,
+    pub spread_threshold: f64,
+    pub bet_balance_percentage: [u64; 2],
+    pub sell_delay_range: [u64; 2],
+    pub batch_delay_range: [u64; 2],
+    pub cycle_count: u64,
 }
 
 impl Config {

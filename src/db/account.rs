@@ -5,10 +5,10 @@ use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    polymarket::api::user::schemas::ClobApiKeyResponseBody, utils::poly::get_proxy_wallet_address,
+    polymarket::api::clob::schemas::ClobApiKeyResponseBody, utils::poly::get_proxy_wallet_address,
 };
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct Account {
     private_key: String,
     proxy: Option<String>,
@@ -86,4 +86,24 @@ impl Account {
         self.secret = Some(response.secret);
         self.passphrase = Some(response.passphrase);
     }
+
+    pub fn get_api_creds(&self) -> Option<ApiCreds> {
+        if let (Some(api_key), Some(api_passphrase), Some(api_secret)) =
+            (&self.api_key, &self.passphrase, &self.secret)
+        {
+            Some(ApiCreds {
+                api_key: api_key.clone(),
+                api_passphrase: api_passphrase.clone(),
+                api_secret: api_secret.clone(),
+            })
+        } else {
+            None
+        }
+    }
+}
+
+pub struct ApiCreds {
+    pub api_key: String,
+    pub api_passphrase: String,
+    pub api_secret: String,
 }

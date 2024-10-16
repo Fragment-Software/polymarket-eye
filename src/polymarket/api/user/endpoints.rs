@@ -1,14 +1,14 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use alloy::signers::Signer;
 use reqwest::{
     header::{HeaderMap, HeaderValue, AUTHORIZATION, COOKIE, SET_COOKIE},
-    Method, Proxy, StatusCode,
+    Method, Proxy,
 };
 
 use crate::{
     errors::custom::CustomError,
-    polymarket::api::typedefs::{AmpCookie, ClobAuthHeaders},
+    polymarket::api::typedefs::AmpCookie,
     utils::{
         fetch::{send_http_request_with_retries, RequestParams},
         poly::{build_cookie_header, build_poly_headers, parse_cookies},
@@ -16,9 +16,8 @@ use crate::{
 };
 
 use super::schemas::{
-    ClobApiKeyResponseBody, CreateUserRequestBody, CreateUserResponseBody,
-    GetAuthNonceResponseBody, LoginReponseBody, UpdatePreferencesRequestBody,
-    UpdateUsernameRequestBody, User,
+    CreateUserRequestBody, CreateUserResponseBody, GetAuthNonceResponseBody, LoginReponseBody,
+    UpdatePreferencesRequestBody, UpdateUsernameRequestBody, User, UserPosition,
 };
 
 pub async fn get_auth_nonce(proxy: Option<&Proxy>) -> Result<(String, String), CustomError> {
@@ -231,67 +230,25 @@ pub async fn get_user(
     Ok(user)
 }
 
-pub async fn derive_api_key<S>(
-    signer: Arc<S>,
+pub async fn get_user_positions(
+    proxy_wallet_address: &str,
     proxy: Option<&Proxy>,
-) -> Result<ClobApiKeyResponseBody, CustomError>
-where
-    S: Signer + Send + Sync,
-{
-    let headers = ClobAuthHeaders::new(signer.clone()).await.to_headers();
-    let mut query_args = HashMap::new();
-    query_args.insert("geo_block_token", "");
+) -> Result<Vec<UserPosition>, CustomError> {
+    let query_args = [("user", proxy_wallet_address), ("sizeThreshold", ".1")]
+        .iter()
+        .map(|(arg, value)| (*arg, *value))
+        .collect();
 
     let request_params = RequestParams {
-        url: "https://clob.polymarket.com/auth/derive-api-key",
+        url: "https://data-api.polymarket.com/positions",
         method: Method::GET,
         body: None::<serde_json::Value>,
         query_args: Some(query_args),
     };
 
-    let response = send_http_request_with_retries::<ClobApiKeyResponseBody>(
+    let response = send_http_request_with_retries::<Vec<UserPosition>>(
         &request_params,
-        Some(&headers),
-        proxy,
         None,
-        None,
-        |err| match err {
-            CustomError::Request(error) => {
-                if let Some(status) = error.status() {
-                    status != StatusCode::BAD_REQUEST
-                } else {
-                    true
-                }
-            }
-            _ => true,
-        },
-    )
-    .await?;
-
-    Ok(response.body.unwrap())
-}
-
-pub async fn create_api_key<S>(
-    signer: Arc<S>,
-    proxy: Option<&Proxy>,
-) -> Result<ClobApiKeyResponseBody, CustomError>
-where
-    S: Signer + Send + Sync,
-{
-    let headers = ClobAuthHeaders::new(signer.clone()).await.to_headers();
-    let mut query_args = HashMap::new();
-    query_args.insert("geo_block_token", "");
-
-    let request_params = RequestParams {
-        url: "https://clob.polymarket.com/auth/api-key",
-        method: Method::POST,
-        body: None::<serde_json::Value>,
-        query_args: Some(query_args),
-    };
-
-    let response = send_http_request_with_retries::<ClobApiKeyResponseBody>(
-        &request_params,
-        Some(&headers),
         proxy,
         None,
         None,

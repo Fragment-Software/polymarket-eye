@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy::{
     network::Ethereum,
-    primitives::U256,
+    primitives::{utils::format_units, U256},
     providers::{Provider, ProviderBuilder},
     transports::Transport,
 };
@@ -58,21 +58,27 @@ where
         proxy_wallet_address
     );
 
-    let balance = client.get_token_balance(&token, None).await?;
+    let (proxy_wallet_balance, wallet_balance) = tokio::try_join!(
+        client.get_token_balance(&token, Some(proxy_wallet_address)),
+        client.get_token_balance(&token, None)
+    )?;
+
     let mut value = token.to_wei(amount);
 
-    if value > balance {
-        value = balance;
+    if value > wallet_balance {
+        value = wallet_balance;
     }
 
     if config.ignore_existing_balance {
         client.transfer(proxy_wallet_address, value, &token).await?;
-    } else if balance > U256::ZERO {
-        tracing::warn!("Proxy wallet already holds {} {}", balance, Token::USDCE);
-        account.set_funded(true);
+    } else if proxy_wallet_balance > U256::ZERO {
+        let ui_amount = format_units(proxy_wallet_balance, "mwei")?;
+        tracing::warn!("Proxy wallet already holds {} {}", ui_amount, Token::USDCE);
     } else {
         client.transfer(proxy_wallet_address, value, &token).await?;
     }
+
+    account.set_funded(true);
 
     Ok(())
 }

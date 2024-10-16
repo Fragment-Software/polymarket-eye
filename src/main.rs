@@ -1,4 +1,5 @@
 use modules::menu::menu;
+
 use utils::logger::init_default_logger;
 
 mod config;

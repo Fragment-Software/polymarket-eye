@@ -1,7 +1,4 @@
-use tokio::{
-    fs::OpenOptions,
-    io::{AsyncBufReadExt, AsyncWriteExt},
-};
+use tokio::io::AsyncBufReadExt;
 
 pub async fn read_file_lines(path: &str) -> eyre::Result<Vec<String>> {
     let file = tokio::fs::read(path).await?;
@@ -13,15 +10,4 @@ pub async fn read_file_lines(path: &str) -> eyre::Result<Vec<String>> {
     }
 
     Ok(lines_vec)
-}
-
-pub async fn append_line_to_file(file_path: &str, line: &str) -> std::io::Result<()> {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(file_path)
-        .await?;
-
-    file.write_all(format!("{}\n", line).as_bytes()).await?;
-    Ok(())
 }

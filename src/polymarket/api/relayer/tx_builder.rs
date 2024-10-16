@@ -70,9 +70,7 @@ impl RelayerTransaction {
     }
 }
 
-pub fn get_multisend_calldata(transactions: Vec<RelayerTransaction>) -> Vec<u8>
-where
-{
+pub fn get_multisend_calldata(transactions: Vec<RelayerTransaction>) -> Vec<u8> {
     let bytes = transactions
         .into_iter()
         .flat_map(|tx| tx.abi_encode_packed())

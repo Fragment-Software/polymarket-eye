@@ -23,6 +23,7 @@ fn init_logger(logs_folder_path: &str) -> WorkerGuard {
 
     let stdout_layer = fmt::layer()
         .with_writer(std::io::stdout)
+        .with_thread_ids(true)
         .pretty() // comment this out if want to use the default format
         .with_ansi(true)
         .with_filter(stdout_filter);

@@ -235,8 +235,8 @@ impl<'a> UpdatePreferencesRequestBody<'a> {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ClobApiKeyResponseBody {
-    pub api_key: String,
-    pub secret: String,
-    pub passphrase: String,
+pub struct UserPosition {
+    pub asset: String,
+    pub size: f64,
+    pub negative_risk: bool,
 }

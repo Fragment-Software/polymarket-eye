@@ -1,7 +1,10 @@
 use std::fs::File;
 
 use itertools::{EitherOrBoth, Itertools};
-use rand::{seq::IteratorRandom, thread_rng};
+use rand::{
+    seq::{IteratorRandom, SliceRandom},
+    thread_rng,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::utils::files::read_file_lines;
@@ -67,5 +70,10 @@ impl Database {
     pub fn update(&self) {
         let file = File::create(DB_FILE_PATH).expect("Default database must be vaild");
         let _ = serde_json::to_writer_pretty(file, &self);
+    }
+
+    pub fn shuffle(&mut self) {
+        self.0.shuffle(&mut thread_rng());
+        self.update();
     }
 }

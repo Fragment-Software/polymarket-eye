@@ -81,7 +81,7 @@ pub async fn send_http_request<R: DeserializeOwned>(
             let json_value = json!(text);
             serde_json::from_value::<R>(json_value)
         }
-        .inspect_err(|e| tracing::error!("Failed to deserialize response: {}\n {{s}}", e))?;
+        .inspect_err(|e| tracing::error!("Failed to deserialize response: {}\n {} ", e, text))?;
 
         Some(deserialized)
     };
