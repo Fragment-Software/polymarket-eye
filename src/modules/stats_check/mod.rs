@@ -92,13 +92,13 @@ pub async fn check_and_display_stats(db: Database, config: &Config) -> eyre::Res
         let user_volume = users_volume_stats
             .iter()
             .find(|res| &res.0 == address)
-            .map(|volume| volume.1.first().unwrap().amount)
+            .map(|volume| volume.1.first().map_or(0f64, |v| v.amount))
             .unwrap_or(0f64);
 
         let user_pnl = users_pnl_stats
             .iter()
             .find(|res| &res.0 == address)
-            .map(|volume| volume.1.first().unwrap().amount)
+            .map(|volume| volume.1.first().map_or(0f64, |v| v.amount))
             .unwrap_or(0f64);
 
         let trade_count = users_trade_count_stats
