@@ -1,13 +1,19 @@
 use std::{str::FromStr, sync::Arc};
 
-use alloy::{primitives::Address, signers::local::PrivateKeySigner};
-use reqwest::{Proxy, StatusCode};
+use alloy::{
+    network::Ethereum,
+    primitives::{bytes, Address, Bytes},
+    providers::{Provider, ProviderBuilder},
+    signers::local::PrivateKeySigner,
+    transports::Transport,
+};
+use reqwest::{Proxy, StatusCode, Url};
 
 use crate::{
     config::Config,
     db::{account::Account, database::Database},
     errors::custom::CustomError,
-    onchain::constants::POLYGON_EXPLORER_TX_BASE_URL,
+    onchain::{constants::POLYGON_EXPLORER_TX_BASE_URL, multicall::check_token_approvals},
     polymarket::api::{
         clob::{
             endpoints::{create_api_key, derive_api_key},
@@ -28,11 +34,19 @@ use crate::{
     },
 };
 
+const ZERO_BYTES: Bytes = bytes!("");
+
 pub async fn register_accounts(mut db: Database, config: &Config) -> eyre::Result<()> {
+    let provider = Arc::new(
+        ProviderBuilder::new()
+            .with_recommended_fillers()
+            .on_http(Url::parse(&config.polygon_rpc_url)?),
+    );
+
     while let Some(account) =
         db.get_random_account_with_filter(|account: &Account| !account.get_is_registered())
     {
-        register_account(account, config).await?;
+        register_account(account, config, provider.clone()).await?;
 
         account.set_is_registered(true);
         db.update();
@@ -43,7 +57,15 @@ pub async fn register_accounts(mut db: Database, config: &Config) -> eyre::Resul
     Ok(())
 }
 
-async fn register_account(account: &mut Account, config: &Config) -> eyre::Result<()> {
+async fn register_account<P, T>(
+    account: &mut Account,
+    config: &Config,
+    provider: Arc<P>,
+) -> eyre::Result<()>
+where
+    P: Provider<T, Ethereum>,
+    T: Transport + Clone,
+{
     let signer = account.signer();
     let proxy = account.proxy();
 
@@ -123,8 +145,12 @@ async fn register_account(account: &mut Account, config: &Config) -> eyre::Resul
             None,
         )
         .await?;
+    }
 
-        // TODO: check if the proxy wallet is activated
+    let proxy_wallet_activated =
+        check_if_proxy_wallet_activated(provider.clone(), account.get_proxy_address()).await?;
+
+    if !proxy_wallet_activated {
         let signature = sign_enable_trading_message(signer.clone()).await;
 
         tracing::info!("Activating a proxy wallet");
@@ -155,8 +181,9 @@ async fn register_account(account: &mut Account, config: &Config) -> eyre::Resul
     let api_creds_response = create_or_derive_api_key(signer.clone(), proxy.as_ref()).await?;
     account.update_credentials(api_creds_response);
 
-    // TODO: check if approvals are given
-    if !user_exists {
+    let approved = check_token_approvals(provider.clone(), account.get_proxy_address()).await?;
+
+    if !approved {
         tracing::info!("Giving token approvals");
         let tx_id = approve_tokens(
             signer,
@@ -200,4 +227,22 @@ async fn create_or_derive_api_key(
     };
 
     Ok(response)
+}
+
+async fn check_if_proxy_wallet_activated<P, T>(
+    provider: Arc<P>,
+    proxy_address: Address,
+) -> eyre::Result<bool>
+where
+    P: Provider<T, Ethereum>,
+    T: Transport + Clone,
+{
+    let code = provider.get_code_at(proxy_address).await?;
+
+    let exists = match code == ZERO_BYTES {
+        true => false,
+        false => true,
+    };
+
+    Ok(exists)
 }
