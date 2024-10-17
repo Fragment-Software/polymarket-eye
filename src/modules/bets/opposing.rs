@@ -294,7 +294,8 @@ async fn build_market_sell_signed_order_for_account(
     let order_builder = OrderBuilder::new(account.signer(), 137, None, Some(&proxy_wallet_address));
 
     let position =
-        wait_for_matching_user_position(&proxy_wallet_address, proxy.as_ref(), token_id).await?;
+        wait_for_matching_user_position(&proxy_wallet_address, proxy.clone(), token_id, None)
+            .await?;
 
     let order_book = get_order_book(token_id, proxy.as_ref()).await?;
     let market_price = calculate_market_price(Side::Sell, order_book, position.size, None);
@@ -317,25 +318,38 @@ async fn build_market_sell_signed_order_for_account(
 
 async fn wait_for_matching_user_position(
     proxy_wallet_address: &str,
-    proxy: Option<&Proxy>,
+    proxy: Option<Proxy>,
     token_id: &str,
+    timeout_duration: Option<Duration>,
 ) -> eyre::Result<UserPosition> {
+    let timeout_duration = timeout_duration.unwrap_or(Duration::from_secs(20));
     let sleep_duration = Duration::from_secs(2);
 
-    loop {
-        let user_positions = get_user_positions(proxy_wallet_address, proxy).await?;
+    let result = tokio::time::timeout(timeout_duration, async {
+        loop {
+            let user_positions = get_user_positions(proxy_wallet_address, proxy.as_ref()).await?;
 
-        if let Some(position) = user_positions
-            .into_iter()
-            .find(|position| position.asset == token_id)
-        {
-            return Ok(position);
-        } else {
-            tracing::warn!(
-                "{} | Positions are not synced yet, sleeping",
-                proxy_wallet_address
-            );
-            tokio::time::sleep(sleep_duration).await;
+            if let Some(position) = user_positions
+                .into_iter()
+                .find(|position| position.asset == token_id)
+            {
+                return Ok(position);
+            } else {
+                tracing::warn!(
+                    "{} | Positions are not synced yet, sleeping",
+                    proxy_wallet_address
+                );
+                tokio::time::sleep(sleep_duration).await;
+            }
         }
+    })
+    .await;
+
+    match result {
+        Ok(Ok(position)) => Ok(position),
+        Ok(Err(e)) => Err(e), // Propagate the error from get_user_positions
+        Err(_) => Err(eyre::eyre!(
+            "Timeout while waiting for matching user position"
+        )),
     }
 }

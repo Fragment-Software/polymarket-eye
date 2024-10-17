@@ -24,10 +24,10 @@ pub struct Market {
     pub question_id: Option<String>,
     #[serde(deserialize_with = "deserialize_into_string_array")]
     pub outcomes: [String; 2],
-    #[serde(deserialize_with = "deserialize_outcome_prices")]
+    #[serde(default, deserialize_with = "deserialize_outcome_prices")]
     pub outcome_prices: Option<[f64; 2]>,
     pub rewards_max_spread: f64,
-    #[serde(deserialize_with = "deserialize_into_string_array")]
+    #[serde(default, deserialize_with = "deserialize_into_string_array")]
     pub clob_token_ids: [String; 2],
     pub spread: f64,
     pub order_price_min_tick_size: f64,

@@ -240,3 +240,27 @@ pub struct UserPosition {
     pub size: f64,
     pub negative_risk: bool,
 }
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserVolumeStats {
+    pub amount: f64,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserPnlStats {
+    pub amount: f64,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserTradesResponseBody {
+    pub traded: u64,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct UserOpenPositionsStats {
+    pub value: f64,
+}

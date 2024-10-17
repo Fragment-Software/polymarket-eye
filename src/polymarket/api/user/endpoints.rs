@@ -17,7 +17,8 @@ use crate::{
 
 use super::schemas::{
     CreateUserRequestBody, CreateUserResponseBody, GetAuthNonceResponseBody, LoginReponseBody,
-    UpdatePreferencesRequestBody, UpdateUsernameRequestBody, User, UserPosition,
+    UpdatePreferencesRequestBody, UpdateUsernameRequestBody, User, UserOpenPositionsStats,
+    UserPnlStats, UserPosition, UserTradesResponseBody, UserVolumeStats,
 };
 
 pub async fn get_auth_nonce(proxy: Option<&Proxy>) -> Result<(String, String), CustomError> {
@@ -247,6 +248,130 @@ pub async fn get_user_positions(
     };
 
     let response = send_http_request_with_retries::<Vec<UserPosition>>(
+        &request_params,
+        None,
+        proxy,
+        None,
+        None,
+        |_| true,
+    )
+    .await?;
+
+    Ok(response.body.unwrap())
+}
+
+pub async fn get_user_volume(
+    proxy_wallet_address: &str,
+    proxy: Option<&Proxy>,
+) -> Result<Vec<UserVolumeStats>, CustomError> {
+    let query_args = [
+        ("window", "all"),
+        ("limit", "1"),
+        ("address", proxy_wallet_address),
+    ]
+    .iter()
+    .map(|(arg, value)| (*arg, *value))
+    .collect();
+
+    let request_params = RequestParams {
+        url: "https://lb-api.polymarket.com/volume",
+        method: Method::GET,
+        body: None::<serde_json::Value>,
+        query_args: Some(query_args),
+    };
+
+    let response = send_http_request_with_retries::<Vec<UserVolumeStats>>(
+        &request_params,
+        None,
+        proxy,
+        None,
+        None,
+        |_| true,
+    )
+    .await?;
+
+    Ok(response.body.unwrap())
+}
+
+pub async fn get_user_pnl(
+    proxy_wallet_address: &str,
+    proxy: Option<&Proxy>,
+) -> Result<Vec<UserPnlStats>, CustomError> {
+    let query_args = [
+        ("window", "all"),
+        ("limit", "1"),
+        ("address", proxy_wallet_address),
+    ]
+    .iter()
+    .map(|(arg, value)| (*arg, *value))
+    .collect();
+
+    let request_params = RequestParams {
+        url: "https://lb-api.polymarket.com/profit",
+        method: Method::GET,
+        body: None::<serde_json::Value>,
+        query_args: Some(query_args),
+    };
+
+    let response = send_http_request_with_retries::<Vec<UserPnlStats>>(
+        &request_params,
+        None,
+        proxy,
+        None,
+        None,
+        |_| true,
+    )
+    .await?;
+
+    Ok(response.body.unwrap())
+}
+
+pub async fn get_user_trade_count(
+    proxy_wallet_address: &str,
+    proxy: Option<&Proxy>,
+) -> Result<UserTradesResponseBody, CustomError> {
+    let query_args = [("user", proxy_wallet_address)]
+        .iter()
+        .map(|(arg, value)| (*arg, *value))
+        .collect();
+
+    let request_params = RequestParams {
+        url: "https://data-api.polymarket.com/traded",
+        method: Method::GET,
+        body: None::<serde_json::Value>,
+        query_args: Some(query_args),
+    };
+
+    let response = send_http_request_with_retries::<UserTradesResponseBody>(
+        &request_params,
+        None,
+        proxy,
+        None,
+        None,
+        |_| true,
+    )
+    .await?;
+
+    Ok(response.body.unwrap())
+}
+
+pub async fn get_user_open_positions_value(
+    proxy_wallet_address: &str,
+    proxy: Option<&Proxy>,
+) -> Result<Vec<UserOpenPositionsStats>, CustomError> {
+    let query_args = [("user", proxy_wallet_address)]
+        .iter()
+        .map(|(arg, value)| (*arg, *value))
+        .collect();
+
+    let request_params = RequestParams {
+        url: "https://data-api.polymarket.com/value",
+        method: Method::GET,
+        body: None::<serde_json::Value>,
+        query_args: Some(query_args),
+    };
+
+    let response = send_http_request_with_retries::<Vec<UserOpenPositionsStats>>(
         &request_params,
         None,
         proxy,
