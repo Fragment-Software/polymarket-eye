@@ -1,16 +1,18 @@
-use std::sync::Arc;
+use std::{fs::File, sync::Arc};
 
 use alloy::{
     primitives::{utils::format_units, Address},
     providers::ProviderBuilder,
 };
 
+use csv::WriterBuilder;
 use itertools::Itertools;
 use reqwest::{Proxy, Url};
 use scraping::{
     scrape_open_positions, scrape_users_open_pos_value, scrape_users_pnl, scrape_users_trade_count,
     scrape_users_volume,
 };
+use serde::Serialize;
 use tabled::{settings::Style, Table, Tabled};
 
 use crate::{
@@ -21,21 +23,35 @@ use crate::{
 
 mod scraping;
 
-#[derive(Tabled)]
+const EXPORT_FILE_PATH: &str = "data/stats.csv";
+#[derive(Tabled, Serialize)]
 struct UserStats {
     #[tabled(rename = "Address")]
+    #[serde(rename = "Address")]
     address: String,
+
     #[tabled(rename = "USDC.e Balance")]
+    #[serde(rename = "USDC.e Balance")]
     balance: String,
+
     #[tabled(rename = "Open positions count")]
+    #[serde(rename = "Open positions count")]
     open_positions_count: usize,
+
     #[tabled(rename = "Open positions value")]
+    #[serde(rename = "Open positions value")]
     open_positions_value: f64,
+
     #[tabled(rename = "Volume")]
+    #[serde(rename = "Volume")]
     volume: f64,
+
     #[tabled(rename = "P&L")]
+    #[serde(rename = "P&L")]
     pnl: f64,
+
     #[tabled(rename = "Trade count")]
+    #[serde(rename = "Trade count")]
     trade_count: u64,
 }
 
@@ -120,10 +136,63 @@ pub async fn check_and_display_stats(db: Database, config: &Config) -> eyre::Res
         stats_entries.push(entry);
     }
 
+    let total_balance: f64 = stats_entries
+        .iter()
+        .map(|entry| entry.balance.parse::<f64>().unwrap_or(0.0))
+        .sum();
+
+    let total_open_positions_count: usize = stats_entries
+        .iter()
+        .map(|entry| entry.open_positions_count)
+        .sum();
+
+    let total_open_positions_value: f64 = stats_entries
+        .iter()
+        .map(|entry| entry.open_positions_value)
+        .sum();
+
+    let total_volume: f64 = stats_entries.iter().map(|entry| entry.volume).sum();
+
+    let total_pnl: f64 = stats_entries.iter().map(|entry| entry.pnl).sum();
+
+    let total_trade_count: u64 = stats_entries.iter().map(|entry| entry.trade_count).sum();
+
+    let total_entry = UserStats {
+        address: "Total".to_string(),
+        balance: format!("{:.2}", total_balance),
+        open_positions_count: total_open_positions_count,
+        open_positions_value: total_open_positions_value,
+        volume: total_volume,
+        pnl: total_pnl,
+        trade_count: total_trade_count,
+    };
+
+    stats_entries.push(total_entry);
+
     let mut table = Table::new(&stats_entries);
     let table = table.with(Style::modern_rounded());
 
     println!("{table}");
+
+    export_stats_to_csv(&stats_entries)?;
+
+    Ok(())
+}
+
+fn export_stats_to_csv(entries: &[UserStats]) -> eyre::Result<()> {
+    let export_file = File::create(EXPORT_FILE_PATH)?;
+
+    let mut writer = WriterBuilder::new()
+        .has_headers(true)
+        .from_writer(export_file);
+
+    for entry in entries {
+        writer.serialize(entry)?
+    }
+
+    writer.flush()?;
+
+    tracing::info!("Stats exported to {}", EXPORT_FILE_PATH);
 
     Ok(())
 }
