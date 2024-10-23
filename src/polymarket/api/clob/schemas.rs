@@ -114,7 +114,7 @@ impl PlaceOrderResponseBody {
             POLYGON_EXPLORER_TX_BASE_URL,
             self.transactions_hashes
                 .as_ref()
-                .unwrap()
+                .unwrap_or(&vec![String::new()])
                 .first()
                 .unwrap_or(&"MISSING".to_string())
         )

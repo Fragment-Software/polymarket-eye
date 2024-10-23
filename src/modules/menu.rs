@@ -2,7 +2,9 @@ use super::{
     bets::opposing::opposing_bets, deposit::deposit_to_accounts, registration::register_accounts,
     stats_check::check_and_display_stats,
 };
-use crate::{config::Config, db::database::Database};
+use crate::{
+    config::Config, db::database::Database, modules::sell::sell_all::sell_all_open_positions,
+};
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Select};
 
@@ -37,6 +39,7 @@ pub async fn menu() -> eyre::Result<()> {
             "USDC deposit",
             "Opposing bets",
             "Proxy wallets stats check",
+            "Sell all open positions",
             "Exit",
         ];
 
@@ -67,6 +70,10 @@ pub async fn menu() -> eyre::Result<()> {
                 check_and_display_stats(db, &config).await?;
             }
             4 => {
+                let db = Database::read().await;
+                sell_all_open_positions(db, &config).await?;
+            }
+            5 => {
                 return Ok(());
             }
             _ => tracing::error!("Invalid selection"),

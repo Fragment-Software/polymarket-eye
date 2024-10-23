@@ -197,7 +197,7 @@ async fn place_opposing_bets_with_timeout(
     ))
 }
 
-async fn create_and_place_sell_market_order(
+pub async fn create_and_place_sell_market_order(
     account: &Account,
     token_id: &str,
     tick_size: TickSize,
