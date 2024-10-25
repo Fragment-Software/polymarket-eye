@@ -10,8 +10,6 @@ use alloy::{
 
 use crate::utils::poly::get_proxy_wallet_address;
 
-use super::constants::MULTISEND_CONTRACT_ADDRESS;
-
 sol! {
     function multiSend(bytes bytes) external payable;
 
@@ -40,9 +38,9 @@ sol! {
 }
 
 impl SafeTx {
-    fn new(data: Bytes, operation: u8, nonce: U256) -> Self {
+    fn new(data: Bytes, operation: u8, nonce: U256, to: Address) -> Self {
         Self {
-            to: MULTISEND_CONTRACT_ADDRESS,
+            to,
             value: U256::ZERO,
             data,
             operation,
@@ -87,6 +85,7 @@ pub async fn get_packed_signature<S>(
     operation: u8,
     nonce: U256,
     encoded_call: Vec<u8>,
+    to: Address,
 ) -> eyre::Result<String>
 where
     S: Signer + Sync + Send,
@@ -98,7 +97,7 @@ where
         verifying_contract: proxy_wallet_address,
     };
 
-    let transaction = SafeTx::new(encoded_call.into(), operation, nonce);
+    let transaction = SafeTx::new(encoded_call.into(), operation, nonce, to);
     let message = transaction.eip712_signing_hash(&domain);
 
     let signature = signer.sign_message(message.as_slice()).await?;

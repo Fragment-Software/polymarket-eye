@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 #[serde_with::skip_serializing_none]
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SignatureParams<'a> {
     payment_token: Option<&'a str>,
@@ -98,7 +98,7 @@ impl<'a> SignatureParams<'a> {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub enum RelayerRequestType {
     #[serde(rename = "SAFE")]
     Safe,

@@ -3,7 +3,9 @@ use super::{
     stats_check::check_and_display_stats,
 };
 use crate::{
-    config::Config, db::database::Database, modules::sell::sell_all::sell_all_open_positions,
+    config::Config,
+    db::database::Database,
+    modules::{sell::sell_all::sell_all_open_positions, withdraw::withdraw_for_all},
 };
 use colored::Colorize;
 use dialoguer::{theme::ColorfulTheme, Select};
@@ -40,6 +42,7 @@ pub async fn menu() -> eyre::Result<()> {
             "Opposing bets",
             "Proxy wallets stats check",
             "Sell all open positions",
+            "Withdraw",
             "Exit",
         ];
 
@@ -74,6 +77,10 @@ pub async fn menu() -> eyre::Result<()> {
                 sell_all_open_positions(db, &config).await?;
             }
             5 => {
+                let mut db = Database::read().await;
+                withdraw_for_all(&mut db, &config).await?;
+            }
+            6 => {
                 return Ok(());
             }
             _ => tracing::error!("Invalid selection"),

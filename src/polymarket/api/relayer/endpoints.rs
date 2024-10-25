@@ -160,5 +160,5 @@ pub async fn send_relayer_transaction<'a>(
     )
     .await?;
 
-    Ok(response.body.unwrap().transaction_id)
+    Ok(response.body.unwrap().transaction_hash)
 }

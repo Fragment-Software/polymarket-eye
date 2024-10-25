@@ -19,6 +19,7 @@ pub struct Config {
     pub sell_delay_range: [u64; 2],
     pub batch_delay_range: [u64; 2],
     pub cycle_count: u64,
+    pub withdraw_delay_range: [u64; 2],
 }
 
 impl Config {

@@ -77,6 +77,10 @@ impl Account {
         &self.private_key
     }
 
+    pub fn get_address(&self) -> Address {
+        Address::from_str(&self.address).expect("Address to be valid")
+    }
+
     pub fn get_proxy_address(&self) -> Address {
         Address::from_str(&self.proxy_address).unwrap()
     }

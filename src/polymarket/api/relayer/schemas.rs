@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::signature_params::{RelayerRequestType, SignatureParams};
 
 #[serde_with::skip_serializing_none]
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RelayerRequestBody<'a> {
     from: String,
