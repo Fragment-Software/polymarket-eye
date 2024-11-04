@@ -63,7 +63,7 @@ where
     let proxy = account.proxy();
     let signer = account.signer();
 
-    let to = account.get_address();
+    let to = account.get_recipient_address();
 
     let ui_amount = format_units(balance, "mwei")?;
     tracing::info!("Proxy wallet `{proxy_wallet_address}` withdrawing {ui_amount} USDC.e to {to}");

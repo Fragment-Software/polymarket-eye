@@ -16,6 +16,7 @@ pub struct Account {
     private_key: String,
     proxy: Option<String>,
     address: String,
+    recipient_address: String,
     is_registered: bool,
     funded: bool,
     pub proxy_address: String,
@@ -60,9 +61,15 @@ where
 }
 
 impl Account {
-    pub fn new(private_key: &str, proxy: Option<String>) -> Self {
+    pub fn new(
+        private_key: &str,
+        proxy: Option<String>,
+        recipient_address: Option<String>,
+    ) -> Self {
         let signer =
             Arc::new(PrivateKeySigner::from_str(private_key).expect("Private key to be valid"));
+        let recipient_address = recipient_address.unwrap_or(signer.address().to_string());
+
         let address = signer.address();
         let proxy_address = get_proxy_wallet_address(signer);
 
@@ -71,6 +78,7 @@ impl Account {
             proxy,
             address: address.to_string(),
             proxy_address: proxy_address.to_string(),
+            recipient_address,
             ..Default::default()
         }
     }
@@ -113,12 +121,12 @@ impl Account {
         &self.private_key
     }
 
-    pub fn get_address(&self) -> Address {
-        Address::from_str(&self.address).expect("Address to be valid")
-    }
-
     pub fn get_proxy_address(&self) -> Address {
         Address::from_str(&self.proxy_address).unwrap()
+    }
+
+    pub fn get_recipient_address(&self) -> Address {
+        Address::from_str(&self.recipient_address).unwrap()
     }
 
     pub fn update_credentials(&self, response: ClobApiKeyResponseBody) {

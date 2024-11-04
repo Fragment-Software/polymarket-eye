@@ -1,6 +1,5 @@
 use std::fs::File;
 
-use itertools::{EitherOrBoth, Itertools};
 use rand::{
     seq::{IteratorRandom, SliceRandom},
     thread_rng,
@@ -11,7 +10,7 @@ use crate::utils::files::read_file_lines;
 
 use super::{
     account::Account,
-    constants::{DB_FILE_PATH, PRIVATE_KEYS_FILE_PATH, PROXIES_FILE_PATH},
+    constants::{DB_FILE_PATH, PRIVATE_KEYS_FILE_PATH, PROXIES_FILE_PATH, RECIPIENTS_FILE_PATH},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -32,18 +31,21 @@ impl Database {
     pub async fn new() -> eyre::Result<Self> {
         let private_keys = read_file_lines(PRIVATE_KEYS_FILE_PATH).await.unwrap();
         let proxies = read_file_lines(PROXIES_FILE_PATH).await.unwrap();
+        let recipients = read_file_lines(RECIPIENTS_FILE_PATH).await.unwrap();
         let mut data = Vec::with_capacity(private_keys.len());
 
-        for entry in private_keys.into_iter().zip_longest(proxies.into_iter()) {
-            let (private_key, proxy) = match entry {
-                EitherOrBoth::Both(pk, proxy) => (pk, Some(proxy)),
-                EitherOrBoth::Left(pk) => (pk, None),
-                EitherOrBoth::Right(_) => {
-                    eyre::bail!("Amount of proxies is greater than amount of private keys")
-                }
+        let max_len = private_keys.len().max(proxies.len()).max(recipients.len());
+
+        for i in 0..max_len {
+            let private_key = match private_keys.get(i) {
+                Some(pk) => pk.clone(),
+                None => eyre::bail!("Missing private key at position {}", i),
             };
 
-            let account = Account::new(&private_key, proxy);
+            let proxy = proxies.get(i).cloned();
+            let recipient = recipients.get(i).cloned();
+
+            let account = Account::new(&private_key, proxy, recipient);
             data.push(account);
         }
 

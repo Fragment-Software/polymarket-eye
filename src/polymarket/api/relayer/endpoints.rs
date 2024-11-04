@@ -140,7 +140,7 @@ pub async fn send_relayer_transaction<'a>(
     amp_cookie: &mut AmpCookie,
     polymarket_nonce: &str,
     polymarket_session: &str,
-) -> Result<String, CustomError> {
+) -> Result<RelayerResponseBody, CustomError> {
     let headers = build_poly_headers(amp_cookie, polymarket_nonce, polymarket_session);
 
     let request_params = RequestParams {
@@ -160,5 +160,5 @@ pub async fn send_relayer_transaction<'a>(
     )
     .await?;
 
-    Ok(response.body.unwrap().transaction_id)
+    Ok(response.body.unwrap())
 }

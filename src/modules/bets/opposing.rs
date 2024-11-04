@@ -370,7 +370,7 @@ async fn wait_for_matching_user_position(
 
     match result {
         Ok(Ok(position)) => Ok(position),
-        Ok(Err(e)) => Err(e), // Propagate the error from get_user_positions
+        Ok(Err(e)) => Err(e),
         Err(_) => Err(eyre::eyre!(
             "Timeout while waiting for matching user position"
         )),

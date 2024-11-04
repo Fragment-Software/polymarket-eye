@@ -59,7 +59,7 @@ pub async fn enable_trading<S: Signer>(
         .with_signature_params(signature_params)
         .with_type(RelayerRequestType::SafeCreate);
 
-    let transaction_id = send_relayer_transaction(
+    let transaction_response = send_relayer_transaction(
         proxy,
         body,
         amp_cookie,
@@ -68,7 +68,7 @@ pub async fn enable_trading<S: Signer>(
     )
     .await?;
 
-    Ok(transaction_id)
+    Ok(transaction_response.transaction_id)
 }
 
 pub async fn withdraw_usdc<S: Signer + Send + Sync>(
@@ -120,7 +120,7 @@ pub async fn withdraw_usdc<S: Signer + Send + Sync>(
         .with_signature_params(signature_params)
         .with_type(RelayerRequestType::Safe);
 
-    let transaction_id = send_relayer_transaction(
+    let transaction_response = send_relayer_transaction(
         proxy,
         body,
         amp_cookie,
@@ -129,7 +129,7 @@ pub async fn withdraw_usdc<S: Signer + Send + Sync>(
     )
     .await?;
 
-    Ok(transaction_id)
+    Ok(transaction_response.transaction_id)
 }
 
 pub async fn approve_tokens<S: Signer + Send + Sync>(
@@ -180,7 +180,7 @@ pub async fn approve_tokens<S: Signer + Send + Sync>(
         .with_signature_params(signature_params)
         .with_type(RelayerRequestType::Safe);
 
-    let transaction_id = send_relayer_transaction(
+    let transaction_response = send_relayer_transaction(
         proxy,
         body,
         amp_cookie,
@@ -189,5 +189,5 @@ pub async fn approve_tokens<S: Signer + Send + Sync>(
     )
     .await?;
 
-    Ok(transaction_id)
+    Ok(transaction_response.transaction_id)
 }
