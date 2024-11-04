@@ -10,6 +10,12 @@ pub enum CustomError {
     #[error("Request error: {0}")]
     Request(#[from] reqwest::Error),
 
+    #[error("HTTP error: {status} - {text}")]
+    HttpStatusError {
+        status: reqwest::StatusCode,
+        text: String,
+    },
+
     #[error("Amount of tries is exceeded")]
     TriesExceeded,
 

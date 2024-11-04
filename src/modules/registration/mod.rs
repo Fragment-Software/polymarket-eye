@@ -219,7 +219,7 @@ async fn create_or_derive_api_key(
 
     let response = match derive_api_key(signer.clone(), proxy).await {
         Ok(response) => response,
-        Err(CustomError::Request(e)) if e.status() == Some(StatusCode::BAD_REQUEST) => {
+        Err(CustomError::HttpStatusError { status, .. }) if status == StatusCode::BAD_REQUEST => {
             tracing::warn!("Account has no existing API key, creating one");
             create_api_key(signer.clone(), proxy).await?
         }

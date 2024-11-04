@@ -46,13 +46,7 @@ where
         None,
         None,
         |err| match err {
-            CustomError::Request(error) => {
-                if let Some(status) = error.status() {
-                    status != StatusCode::BAD_REQUEST
-                } else {
-                    true
-                }
-            }
+            CustomError::HttpStatusError { status, .. } => status != &StatusCode::BAD_REQUEST,
             _ => true,
         },
     )

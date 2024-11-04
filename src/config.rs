@@ -15,6 +15,7 @@ pub struct Config {
     pub deposit_sleep_range: [u64; 2],
     pub price_difference_threshold: f64,
     pub spread_threshold: f64,
+    pub min_event_volume: f64,
     pub bet_balance_percentage: [u64; 2],
     pub sell_delay_range: [u64; 2],
     pub batch_delay_range: [u64; 2],

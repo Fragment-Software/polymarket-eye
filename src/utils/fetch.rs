@@ -53,24 +53,42 @@ pub async fn send_http_request<R: DeserializeOwned>(
         request = request.headers(headers.clone());
     }
 
-    let response = request
-        .send()
-        .await
-        .inspect_err(|e| tracing::error!("Request failed: {}", e))?
-        .error_for_status()
-        .inspect_err(|e| tracing::error!("Non-successful status code: {}", e))?;
+    let response = request.send().await.inspect_err(|e| {
+        tracing::error!(
+            "Request failed: {}. Proxy: {:?}",
+            e,
+            match proxy {
+                Some(p) => format!("{:?}", p),
+                None => "No proxy".to_string(),
+            }
+        )
+    })?;
 
     let response_headers = response.headers().clone();
-
-    let content_type = response_headers
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("");
+    let status = response.status();
 
     let text = response
         .text()
         .await
         .inspect_err(|e| tracing::error!("Failed to retrieve response text: {}", e))?;
+
+    if !status.is_success() {
+        tracing::error!(
+            "Request failed with status: {}. Response text: {}. Proxy: {:?}",
+            status,
+            text,
+            match proxy {
+                Some(p) => format!("{:?}", p),
+                None => "No proxy".to_string(),
+            }
+        );
+        return Err(CustomError::HttpStatusError { status, text });
+    }
+
+    let content_type = response_headers
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("");
 
     let response_body = if text.trim().is_empty() {
         None

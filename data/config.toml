@@ -18,6 +18,7 @@ DEPOSIT_SLEEP_RANGE = [13, 18] # delays made between each proxy wallet deposit
 # OPPOSING BETS #
 PRICE_DIFFERENCE_THRESHOLD = 0.5 # max price difference between outcomes, if price_difference > PRICE_DIFFERENCE_THRESHOLD the event will be skipped
 SPREAD_THRESHOLD = 0.01 # the minimum required price difference between ask and bid to execute trades, if spread > SPREAD_THRESHOLD the event will be skipped
+MIN_EVENT_VOLUME = 500000 # the minimum $USD volume of the event
 BET_BALANCE_PERCENTAGE = [
     10,
     15,

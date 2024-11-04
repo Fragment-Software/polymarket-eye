@@ -9,6 +9,7 @@ pub struct Event {
     pub id: String,
     pub slug: String,
     pub title: String,
+    pub volume: f64,
     pub markets: Vec<Market>,
     pub neg_risk: Option<bool>,
 }

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use reqwest::Proxy;
 
 use crate::{
@@ -17,7 +18,11 @@ pub async fn get_filtered_events(
     let mut filtered_events = vec![];
 
     loop {
-        let events = get_events(None, offset, proxy).await?;
+        let events = get_events(None, offset, proxy)
+            .await?
+            .into_iter()
+            .filter(|event| event.volume >= config.min_event_volume)
+            .collect_vec();
 
         if events.is_empty() {
             break;
