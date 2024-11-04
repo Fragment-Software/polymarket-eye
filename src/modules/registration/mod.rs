@@ -211,7 +211,7 @@ where
     Ok(())
 }
 
-async fn create_or_derive_api_key(
+pub async fn create_or_derive_api_key(
     signer: Arc<PrivateKeySigner>,
     proxy: Option<&Proxy>,
 ) -> eyre::Result<ClobApiKeyResponseBody> {

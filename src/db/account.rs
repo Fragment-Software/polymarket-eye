@@ -1,8 +1,11 @@
-use std::{str::FromStr, sync::Arc};
+use std::{
+    str::FromStr,
+    sync::{Arc, RwLock},
+};
 
 use alloy::{primitives::Address, signers::local::PrivateKeySigner};
 use reqwest::Proxy;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
     polymarket::api::clob::schemas::ClobApiKeyResponseBody, utils::poly::get_proxy_wallet_address,
@@ -18,9 +21,42 @@ pub struct Account {
     pub proxy_address: String,
     pub polymarket_nonce: Option<String>,
     pub polymarket_session: Option<String>,
-    pub api_key: Option<String>,
-    pub secret: Option<String>,
-    pub passphrase: Option<String>,
+    #[serde(
+        serialize_with = "serialize_arc_rwlock_option_string",
+        deserialize_with = "deserialize_arc_rwlock_option_string"
+    )]
+    pub api_key: Arc<RwLock<Option<String>>>,
+    #[serde(
+        serialize_with = "serialize_arc_rwlock_option_string",
+        deserialize_with = "deserialize_arc_rwlock_option_string"
+    )]
+    pub secret: Arc<RwLock<Option<String>>>,
+    #[serde(
+        serialize_with = "serialize_arc_rwlock_option_string",
+        deserialize_with = "deserialize_arc_rwlock_option_string"
+    )]
+    pub passphrase: Arc<RwLock<Option<String>>>,
+}
+
+fn serialize_arc_rwlock_option_string<S>(
+    data: &Arc<RwLock<Option<String>>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let data = data.read().unwrap();
+    data.serialize(serializer)
+}
+
+fn deserialize_arc_rwlock_option_string<'de, D>(
+    deserializer: D,
+) -> Result<Arc<RwLock<Option<String>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let data = Option::<String>::deserialize(deserializer)?;
+    Ok(Arc::new(RwLock::new(data)))
 }
 
 impl Account {
@@ -85,15 +121,19 @@ impl Account {
         Address::from_str(&self.proxy_address).unwrap()
     }
 
-    pub fn update_credentials(&mut self, response: ClobApiKeyResponseBody) {
-        self.api_key = Some(response.api_key);
-        self.secret = Some(response.secret);
-        self.passphrase = Some(response.passphrase);
+    pub fn update_credentials(&self, response: ClobApiKeyResponseBody) {
+        *self.api_key.write().unwrap() = Some(response.api_key);
+        *self.secret.write().unwrap() = Some(response.secret);
+        *self.passphrase.write().unwrap() = Some(response.passphrase);
     }
 
     pub fn get_api_creds(&self) -> Option<ApiCreds> {
+        let api_key_guard = self.api_key.read().unwrap();
+        let passphrase_guard = self.passphrase.read().unwrap();
+        let secret_guard = self.secret.read().unwrap();
+
         if let (Some(api_key), Some(api_passphrase), Some(api_secret)) =
-            (&self.api_key, &self.passphrase, &self.secret)
+            (&*api_key_guard, &*passphrase_guard, &*secret_guard)
         {
             Some(ApiCreds {
                 api_key: api_key.clone(),

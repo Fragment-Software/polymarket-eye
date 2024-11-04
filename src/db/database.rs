@@ -25,10 +25,8 @@ impl Database {
     }
 
     #[allow(unused)]
-    pub async fn read() -> Self {
-        Self::read_from_file(DB_FILE_PATH)
-            .await
-            .expect("Default db to be valid")
+    pub async fn read() -> eyre::Result<Self> {
+        Self::read_from_file(DB_FILE_PATH).await
     }
 
     pub async fn new() -> eyre::Result<Self> {

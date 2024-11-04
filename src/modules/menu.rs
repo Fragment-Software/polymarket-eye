@@ -30,6 +30,13 @@ const LOGO: &str = r#"
 "#;
 
 pub async fn menu() -> eyre::Result<()> {
+    async fn read_or_create_db() -> eyre::Result<Database> {
+        match Database::read().await {
+            Ok(db) => Ok(db),
+            Err(_) => Database::new().await,
+        }
+    }
+
     let config = Config::read_default().await;
     let logo = LOGO.red();
 
@@ -59,25 +66,25 @@ pub async fn menu() -> eyre::Result<()> {
                 register_accounts(db, &config).await?;
             }
             1 => {
-                let mut db = Database::read().await;
-                db.shuffle();
+                let db = Database::new().await?;
                 deposit_to_accounts(db, &config).await?;
             }
             2 => {
-                let mut db = Database::read().await;
+                let mut db = read_or_create_db().await?;
                 db.shuffle();
+
                 opposing_bets(db, &config).await?;
             }
             3 => {
-                let db = Database::read().await;
+                let db = read_or_create_db().await?;
                 check_and_display_stats(db, &config).await?;
             }
             4 => {
-                let db = Database::read().await;
+                let db = read_or_create_db().await?;
                 sell_all_open_positions(db, &config).await?;
             }
             5 => {
-                let mut db = Database::read().await;
+                let mut db = read_or_create_db().await?;
                 withdraw_for_all(&mut db, &config).await?;
             }
             6 => {

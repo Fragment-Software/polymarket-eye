@@ -13,6 +13,7 @@ use tokio::task::JoinSet;
 use crate::{
     config::Config,
     db::{account::Account, database::Database},
+    modules::registration::create_or_derive_api_key,
     onchain::{multicall::multicall_balance_of, types::token::Token},
     polymarket::api::{
         clob::{
@@ -98,6 +99,8 @@ pub async fn opposing_bets(db: Database, config: &Config) -> eyre::Result<()> {
                 Err(e) => tracing::error!("Unexpected error during placing opposing bets: {e}"),
             }
         }
+
+        db.update();
     }
 
     Ok(())
@@ -205,11 +208,19 @@ pub async fn create_and_place_sell_market_order(
     let signed_order =
         build_market_sell_signed_order_for_account(account, token_id, tick_size).await?;
 
-    let order_request = OrderRequest::new(
-        signed_order,
-        account.api_key.as_ref().unwrap(),
-        Some(OrderType::Gtc),
-    );
+    let api_key = {
+        let maybe_key = account.api_key.read().unwrap().clone();
+        if let Some(key) = maybe_key {
+            key
+        } else {
+            let response =
+                create_or_derive_api_key(account.signer(), account.proxy().as_ref()).await?;
+            account.update_credentials(response);
+            account.api_key.read().unwrap().as_ref().unwrap().clone()
+        }
+    };
+
+    let order_request = OrderRequest::new(signed_order, &api_key, Some(OrderType::Gtc));
 
     let place_order_result = place_order(account, order_request).await?;
 
@@ -229,7 +240,19 @@ async fn create_and_place_buy_market_order(
         build_market_buy_signed_order_for_account(account, token_id, event, amount_in, tick_size)
             .await?;
 
-    let order_request = OrderRequest::new(signed_order, account.api_key.as_ref().unwrap(), None);
+    let api_key = {
+        let maybe_key = account.api_key.read().unwrap().clone();
+        if let Some(key) = maybe_key {
+            key
+        } else {
+            let response =
+                create_or_derive_api_key(account.signer(), account.proxy().as_ref()).await?;
+            account.update_credentials(response);
+            account.api_key.read().unwrap().as_ref().unwrap().clone()
+        }
+    };
+
+    let order_request = OrderRequest::new(signed_order, &api_key, None);
 
     let place_order_result = place_order(account, order_request).await?;
 
