@@ -129,7 +129,7 @@ pub async fn withdraw_usdc<S: Signer + Send + Sync>(
     )
     .await?;
 
-    Ok(transaction_response.transaction_id)
+    Ok(transaction_response.transaction_hash)
 }
 
 pub async fn approve_tokens<S: Signer + Send + Sync>(
